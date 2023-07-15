@@ -9,7 +9,7 @@ closeBarCurrent = close
 bullishEngulfing = (openBarCurrent <= closeBarPrevious) and (openBarCurrent < openBarPrevious) and (closeBarCurrent > openBarPrevious)
 bearishEngulfing = (openBarCurrent >= closeBarPrevious) and (openBarCurrent > openBarPrevious) and (closeBarCurrent < openBarPrevious)
 
-averageVolume = ta.sma(volume, 14) // Adjust the period as needed
+averageVolume = ta.sma(volume, 20) // Adjust the period as needed
 
 bullishCondition = bullishEngulfing and volume >= averageVolume
 bearishCondition = bearishEngulfing and volume >= averageVolume
