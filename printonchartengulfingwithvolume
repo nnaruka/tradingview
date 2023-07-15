@@ -1,0 +1,42 @@
+//@version=5
+indicator("Naresh Engulfing Candles", overlay = true)
+
+openBarPrevious = request.security(syminfo.tickerid, timeframe.period, open[1])
+closeBarPrevious = request.security(syminfo.tickerid, timeframe.period, close[1])
+openBarCurrent = open
+closeBarCurrent = close
+
+bullishEngulfing = (openBarCurrent <= closeBarPrevious) and (openBarCurrent < openBarPrevious) and (closeBarCurrent > openBarPrevious)
+bearishEngulfing = (openBarCurrent >= closeBarPrevious) and (openBarCurrent > openBarPrevious) and (closeBarCurrent < openBarPrevious)
+
+averageVolume = ta.sma(volume, 14) // Adjust the period as needed
+
+bullishCondition = bullishEngulfing and volume >= averageVolume
+bearishCondition = bearishEngulfing and volume >= averageVolume
+
+plotshape(bullishCondition, style = shape.triangleup, location = location.belowbar, color = color.green, size = size.tiny)
+plotshape(bearishCondition, style = shape.triangledown, location = location.abovebar, color = color.red, size = size.tiny)
+
+alertcondition(bullishCondition, title = "Bullish Engulfing with High Volume", message = "[CurrencyPair] [TimeFrame], Bullish candle engulfing previous candle with high volume")
+alertcondition(bearishCondition, title = "Bearish Engulfing with High Volume", message = "[CurrencyPair] [TimeFrame], Bearish candle engulfing previous candle with high volume")
+
+// ================================== BACKTEST ================================== //
+
+var int FromMonth = 1
+var int FromDay = 1
+var int FromYear = 2017
+var int ToMonth = 1
+var int ToDay = 1
+var int ToYear = 9999
+
+start = timestamp(FromYear, FromMonth, FromDay, 00, 00)
+finish = timestamp(ToYear, ToMonth, ToDay, 23, 59)
+window() => time >= start and time <= finish
+
+// === EXECUTION === //
+
+// strategy("Engulfing Candles", overlay = true) // Uncomment for backtesting
+// strategy.entry("L", strategy.long, 25000, when = bullishCondition == true and window()) // Buy long when "within window of time," bullish engulfing pattern, and high volume
+// strategy.exit("exit", "L", profit = 1000, loss = 50)
+// strategy.entry("S", strategy.short, 25000, when = bearishCondition == true and window()) // Sell short when "within window of time," bearish engulfing pattern, and high volume
+// strategy.exit("exit", "S", profit = 1000, loss = 50)
