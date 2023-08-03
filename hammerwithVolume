@@ -1,0 +1,15 @@
+//@version=5
+indicator("Naresh - Hammer & Hanging Man & Inverted Hammer & Shooting Star", overlay=true)
+
+body = math.abs(open - close)
+us = open < close ? high - close : high - open
+ls = open < close ? open - low : close - low
+
+averageVolume = ta.sma(volume, 20) // Adjust the period as needed
+
+// data = (us < body*0.1 and ls>body*2)
+hammer_data = us < body * 0.2 and ls > body * 2 and ls <= body * 3 and volume >= averageVolume
+inverted_hammer_data = ls < body * 0.2 and us > body * 2 and us <= body * 3 and volume >= averageVolume
+
+plotshape(hammer_data, text='HM')
+plotshape(inverted_hammer_data, text='IHM')
