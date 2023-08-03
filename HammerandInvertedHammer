@@ -1,0 +1,14 @@
+// This script puts HM and IHM text on corresponding candles
+study("Naresh - Hammer & Hanging Man & Inverted Hammer & Shooting Star",overlay=true)
+
+body=abs(open-close)
+us= open<close ? high-close : high-open
+ls = open<close ? open-low : close-low
+
+
+// data = (us < body*0.1 and ls>body*2)
+hammer_data= us < body*0.2 and ls>body*2 and ls<=body*3
+inverted_hammer_data=ls < body*0.2 and us>body*2 and us<=body*3
+
+plotshape(hammer_data, text='HM')
+plotshape(inverted_hammer_data, text='IHM')
