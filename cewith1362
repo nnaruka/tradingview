@@ -1,0 +1,62 @@
+//@version=4
+study("Naresh Chandelier Exit", shorttitle="Naresh CE", overlay=true)
+
+// === INPUTS ===
+//bug check NZDUSD 01-AUG 06:35 was not giving sell signal, fix it since the sell signal was between 13 and 62
+
+
+ema1 = ema(close, 13)
+ema2 = ema(close, 62)
+
+
+pema1plot = plot(ema1, color=color.green, style=plot.style_line, linewidth=1, title='EMA 1')
+pema2plot = plot(ema2, color=color.red, style=plot.style_line, linewidth=1, title='EMA 2')
+
+
+fill(pema1plot, pema2plot, ema1 > ema2 ? color.new(color.green, 80) : color.new(color.red, 80))
+
+
+
+length = input(title="ATR Period", type=input.integer, defval=1)
+mult = input(title="ATR Multiplier", type=input.float, step=0.1, defval=1.0)
+showLabels = input(title="Show Buy/Sell Labels ?", type=input.bool, defval=true)
+useClose = input(title="Use Close Price for Extremums ?", type=input.bool, defval=false)
+highlightState = input(title="Highlight State ?", type=input.bool, defval=false)
+
+atr = mult * atr(length)
+
+longStop = (useClose ? highest(close, length) : highest(length)) - atr
+longStopPrev = nz(longStop[1], longStop) 
+longStop := close[1] > longStopPrev ? max(longStop, longStopPrev) : longStop
+
+shortStop = (useClose ? lowest(close, length) : lowest(length)) + atr
+shortStopPrev = nz(shortStop[1], shortStop)
+shortStop := close[1] < shortStopPrev ? min(shortStop, shortStopPrev) : shortStop
+
+var int dir = 1
+dir := close > shortStopPrev ? 1 : close < longStopPrev ? -1 : dir
+
+var color longColor = color.green
+var color shortColor = color.red
+
+longStopPlot = plot(dir == 1 ? longStop : na, title="Long Stop", style=plot.style_linebr, linewidth=2, color=longColor)
+buySignal = dir == 1 and dir[1] == -1
+plotshape(buySignal ? longStop : na, title="Long Stop Start", location=location.absolute, style=shape.circle, size=size.tiny, color=longColor, transp=0)
+plotshape(buySignal and showLabels and ema1>=ema2 and (open<ema2 or (open>=ema2 and open<=ema1 )) ? longStop : na, title="Buy Label", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=longColor, textcolor=color.white, transp=0)
+
+shortStopPlot = plot(dir == 1 ? na : shortStop, title="Short Stop", style=plot.style_linebr, linewidth=2, color=shortColor)
+sellSignal = dir == -1 and dir[1] == 1
+plotshape(sellSignal ? shortStop : na, title="Short Stop Start", location=location.absolute, style=shape.circle, size=size.tiny, color=shortColor, transp=0)
+plotshape(sellSignal and showLabels and ema1<=ema2  and (open>ema2 or (open<ema2 and open>= ema1)) ? shortStop : na, title="Sell Label", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=shortColor, textcolor=color.white, transp=0)
+
+midPricePlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0, display=display.none, editable=false)
+
+longFillColor = highlightState ? (dir == 1 ? longColor : na) : na
+shortFillColor = highlightState ? (dir == -1 ? shortColor : na) : na
+//fill(midPricePlot, longStopPlot, title="Long State Filling", color=longFillColor)
+//fill(midPricePlot, shortStopPlot, title="Short State Filling", color=shortFillColor)
+
+changeCond = dir != dir[1]
+alertcondition(changeCond, title="Alert: CE Direction Change", message="Chandelier Exit has changed direction!")
+alertcondition(buySignal, title="Alert: CE Buy", message="Chandelier Exit Buy!")
+alertcondition(sellSignal, title="Alert: CE Sell", message="Chandelier Exit Sell!")
