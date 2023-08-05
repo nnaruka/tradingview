@@ -42,12 +42,13 @@ var color shortColor = color.red
 longStopPlot = plot(dir == 1 ? longStop : na, title="Long Stop", style=plot.style_linebr, linewidth=2, color=longColor)
 buySignal = dir == 1 and dir[1] == -1
 plotshape(buySignal ? longStop : na, title="Long Stop Start", location=location.absolute, style=shape.circle, size=size.tiny, color=longColor, transp=0)
-plotshape(buySignal and showLabels and ema1>=ema2 and (open<ema2 or (open>=ema2 and open<=ema1 )) ? longStop : na, title="Buy Label", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=longColor, textcolor=color.white, transp=0)
+plotshape(buySignal and showLabels and ema1>=ema2 and (close <= ema2 or close[1] <= ema2[1] or close[2] <= ema2[2] or close[3] <= ema2[3] or close[4] <= ema2[4] or close[5] <= ema2[5]) ? longStop : na, title="Buy Label", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=longColor, textcolor=color.white, transp=0)
 
 shortStopPlot = plot(dir == 1 ? na : shortStop, title="Short Stop", style=plot.style_linebr, linewidth=2, color=shortColor)
 sellSignal = dir == -1 and dir[1] == 1
 plotshape(sellSignal ? shortStop : na, title="Short Stop Start", location=location.absolute, style=shape.circle, size=size.tiny, color=shortColor, transp=0)
-plotshape(sellSignal and showLabels and ema1<=ema2  and (open>ema2 or (open<ema2 and open>= ema1)) ? shortStop : na, title="Sell Label", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=shortColor, textcolor=color.white, transp=0)
+plotshape(sellSignal and showLabels and ema1 <= ema2 and (close >= ema2 or close[1] >= ema2[1] or close[2] >= ema2[2] or close[3] >= ema2[3] or close[4] >= ema2[4] or close[5] >= ema2[5]) ? shortStop : na, title="Sell Label", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=shortColor, textcolor=color.white, transp=0)
+
 
 midPricePlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0, display=display.none, editable=false)
 
