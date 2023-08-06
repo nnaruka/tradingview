@@ -11,5 +11,10 @@ averageVolume = ta.sma(volume, 20) // Adjust the period as needed
 hammer_data = us < body * 0.2 and ls > body * 2 and ls <= body * 3 and volume >= averageVolume
 inverted_hammer_data = ls < body * 0.2 and us > body * 2 and us <= body * 3 and volume >= averageVolume
 
+// Set the same background color for both Hammer and Inverted Hammer
+bgColor = hammer_data or inverted_hammer_data ? color.new(color.blue, 90) : na
+bgcolor(bgColor) 
+
+
 plotshape(hammer_data, text='HM')
 plotshape(inverted_hammer_data, text='IHM')
