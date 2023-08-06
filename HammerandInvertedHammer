@@ -1,14 +1,18 @@
-// This script puts HM and IHM text on corresponding candles
-study("Naresh - Hammer & Hanging Man & Inverted Hammer & Shooting Star",overlay=true)
+//@version=4
+study("Naresh - Hammer & Hanging Man & Inverted Hammer & Shooting Star", overlay=true)
 
-body=abs(open-close)
-us= open<close ? high-close : high-open
-ls = open<close ? open-low : close-low
+body = abs(open - close)
+us = open < close ? high - close : high - open
+ls = open < close ? open - low : close - low
 
+// data = (us < body*0.1 and ls > body*2)
+hammer_data = us < body * 0.2 and ls > body * 2 and ls <= body * 3.5
+inverted_hammer_data = ls < body * 0.2 and us > body * 2 and us <= body * 3.5
 
-// data = (us < body*0.1 and ls>body*2)
-hammer_data= us < body*0.2 and ls>body*2 and ls<=body*3
-inverted_hammer_data=ls < body*0.2 and us>body*2 and us<=body*3
+// Set the same background color for both Hammer and Inverted Hammer
+bgColor = hammer_data or inverted_hammer_data ? color.new(color.blue, 90) : na
+bgcolor(bgColor)
 
-plotshape(hammer_data, text='HM')
-plotshape(inverted_hammer_data, text='IHM')
+// Plot the Hammer and Inverted Hammer patterns
+plotshape(hammer_data, text='HM', location=location.belowbar, color=color.green, transp=0)
+plotshape(inverted_hammer_data, text='IHM', location=location.abovebar, color=color.red, transp=0)
