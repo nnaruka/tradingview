@@ -15,6 +15,11 @@ inverted_hammer_data = ls < body * 0.2 and us > body * 2 and us <= body * 3 and 
 bgColor = hammer_data or inverted_hammer_data ? color.new(color.blue, 90) : na
 bgcolor(bgColor) 
 
-
 plotshape(hammer_data, text='HM')
 plotshape(inverted_hammer_data, text='IHM')
+
+// Alert condition for Hammer pattern
+alertcondition(hammer_data, title="Hammer Alert", message="Hammer pattern detected!")
+
+// Alert condition for Inverted Hammer pattern
+alertcondition(inverted_hammer_data, title="Inverted Hammer Alert", message="Inverted Hammer pattern detected!")
