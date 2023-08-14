@@ -1,0 +1,54 @@
+//@version=5
+strategy("EMA Cross Strategy(strategy)", overlay=true)
+
+// EMA value
+ema1 = ta.ema(close, 13)
+ema2 = ta.ema(close, 62)
+
+// Plot ema lines
+plot(ema1, color=color.green, title='EMA-1')
+plot(ema2, color=color.red, title='EMA-2')
+
+length = input.int(title="ATR Period", defval=1)
+mult = input.float(title="ATR Multiplier", step=0.1, defval=1.0)
+showLabels = input.bool(title="Show Buy/Sell Labels ?", defval=true)
+useClose = input.bool(title="Use Close Price for Extremums ?", defval=false)
+
+atr = mult * ta.atr(length)
+
+longStop = (useClose ? ta.highest(close, length) : ta.highest(length)) - atr
+longStopPrev = na(longStop[1]) ? longStop : longStop[1]
+longStop := close[1] > longStopPrev ? math.max(longStop, longStopPrev) : longStop
+
+shortStop = (useClose ? ta.lowest(close, length) : ta.lowest(length)) + atr
+shortStopPrev = na(shortStop[1]) ? shortStop : shortStop[1]
+shortStop := close[1] < shortStopPrev ? math.min(shortStop, shortStopPrev) : shortStop
+var int dir = 1
+dir := close > shortStopPrev ? 1 : close < longStopPrev ? -1 : dir
+
+longStopPlot = plot(dir == 1 ? longStop : na, title="Long Stop", style=plot.style_linebr, linewidth=2, color=color.green)
+buySignal = dir == 1 and dir[1] == -1
+
+plotshape(buySignal and showLabels and ema1>=ema2 and (close <= ema2 or close[1] <= ema2[1] or close[2] <= ema2[2] or close[3] <= ema2[3] or close[4] <= ema2[4] or close[5] <= ema2[5]) ? longStop : na, title="Buy Label", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.green, textcolor=color.white)
+
+shortStopPlot = plot(dir == 1 ? na : shortStop, title="Short Stop", style=plot.style_linebr, linewidth=2, color=color.red)
+sellSignal = dir == -1 and dir[1] == 1
+
+plotshape(sellSignal and showLabels and ema1 <= ema2 and (close >= ema2 or close[1] >= ema2[1] or close[2] >= ema2[2] or close[3] >= ema2[3] or close[4] >= ema2[4] or close[5] >= ema2[5]) ? shortStop : na, title="Sell Label", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white)
+
+// Trading strategy
+if buySignal and  ema1>=ema2 and (close <= ema2 or close[1] <= ema2[1] or close[2] <= ema2[2] or close[3] <= ema2[3] or close[4] <= ema2[4] or close[5] <= ema2[5])
+    strategy.entry("Buy", strategy.long)
+
+if sellSignal and ema1 <= ema2 and (close >= ema2 or close[1] >= ema2[1] or close[2] >= ema2[2] or close[3] >= ema2[3] or close[4] >= ema2[4] or close[5] >= ema2[5])
+    strategy.entry("Sell", strategy.short)
+
+// Close trades when EMAs cross in opposite direction
+var bool emaCrossDirection = false
+if ema1 > ema2
+    emaCrossDirection := true
+if ema1 < ema2
+    emaCrossDirection := false
+
+if (emaCrossDirection and dir == -1) or (not emaCrossDirection and dir == 1)
+    strategy.close_all()
