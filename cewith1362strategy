@@ -1,6 +1,7 @@
 //@version=5
-strategy("EMA Cross Strategy(strategy)", overlay=true)
+strategy("Lauris EMA Cross Strategy", overlay=true)
 
+float stopLossPrice = 0
 // EMA value
 ema1 = ta.ema(close, 13)
 ema2 = ta.ema(close, 62)
@@ -29,11 +30,19 @@ dir := close > shortStopPrev ? 1 : close < longStopPrev ? -1 : dir
 longStopPlot = plot(dir == 1 ? longStop : na, title="Long Stop", style=plot.style_linebr, linewidth=2, color=color.green)
 buySignal = dir == 1 and dir[1] == -1
 
+Buycondition = buySignal and ema1>=ema2 and (close <= ema2 or close[1] <= ema2[1] or close[2] <= ema2[2] or close[3] <= ema2[3] or close[4] <= ema2[4] or close[5] <= ema2[5])
+if Buycondition
+    stopLossPrice := close - 20 * syminfo.mintick
+    
 plotshape(buySignal and showLabels and ema1>=ema2 and (close <= ema2 or close[1] <= ema2[1] or close[2] <= ema2[2] or close[3] <= ema2[3] or close[4] <= ema2[4] or close[5] <= ema2[5]) ? longStop : na, title="Buy Label", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.green, textcolor=color.white)
 
 shortStopPlot = plot(dir == 1 ? na : shortStop, title="Short Stop", style=plot.style_linebr, linewidth=2, color=color.red)
 sellSignal = dir == -1 and dir[1] == 1
 
+SellCondition = sellSignal and ema1 <= ema2 and (close >= ema2 or close[1] >= ema2[1] or close[2] >= ema2[2] or close[3] >= ema2[3] or close[4] >= ema2[4] or close[5] >= ema2[5])
+if SellCondition
+    stopLossPrice := close + 20 * syminfo.mintick
+    
 plotshape(sellSignal and showLabels and ema1 <= ema2 and (close >= ema2 or close[1] >= ema2[1] or close[2] >= ema2[2] or close[3] >= ema2[3] or close[4] >= ema2[4] or close[5] >= ema2[5]) ? shortStop : na, title="Sell Label", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white)
 
 // Trading strategy
@@ -44,11 +53,18 @@ if sellSignal and ema1 <= ema2 and (close >= ema2 or close[1] >= ema2[1] or clos
     strategy.entry("Sell", strategy.short)
 
 // Close trades when EMAs cross in opposite direction
-var bool emaCrossDirection = false
-if ema1 > ema2
-    emaCrossDirection := true
-if ema1 < ema2
-    emaCrossDirection := false
+//var bool emaCrossDirection = false
+//if ema1 > ema2
+//    emaCrossDirection := true
+//if ema1 < ema2
+//    emaCrossDirection := false
+//
+//if (emaCrossDirection and dir == -1) or (not emaCrossDirection and dir == 1)
+//    strategy.close_all()
 
-if (emaCrossDirection and dir == -1) or (not emaCrossDirection and dir == 1)
+//slforbuy = close - 20 * syminfo.mintick 
+//slforsell = close - 20 * syminfo.mintick
+//if (Buycondition and (ema1 < ema2 or low <= slforbuy )) or (SellCondition and (ema1 > ema2 or high >= slforsell))
+if (Buycondition and ema1 < ema2 ) or (SellCondition and ema1 > ema2)
     strategy.close_all()
+
