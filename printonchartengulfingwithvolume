@@ -1,5 +1,5 @@
 //@version=5
-indicator("Naresh Engulfing Candles", overlay = true)
+indicator("Naresh Engulfing Candles with volume and MACD", overlay = true)
 
 openBarPrevious = request.security(syminfo.tickerid, timeframe.period, open[1])
 closeBarPrevious = request.security(syminfo.tickerid, timeframe.period, close[1])
@@ -14,11 +14,19 @@ averageVolume = ta.sma(volume, 20) // Adjust the period as needed
 bullishCondition = bullishEngulfing and volume >= averageVolume
 bearishCondition = bearishEngulfing and volume >= averageVolume
 
-plotshape(bullishCondition, style = shape.triangleup, location = location.belowbar, color = color.green, size = size.tiny)
-plotshape(bearishCondition, style = shape.triangledown, location = location.abovebar, color = color.red, size = size.tiny)
+// MACD indicator
+[macdLine, signalLine, _] = ta.macd(close, 12, 26, 9) // You can adjust these parameters
 
-alertcondition(bullishCondition, title = "Bullish Engulfing with High Volume", message = "[CurrencyPair] [TimeFrame], Bullish candle engulfing previous candle with high volume")
-alertcondition(bearishCondition, title = "Bearish Engulfing with High Volume", message = "[CurrencyPair] [TimeFrame], Bearish candle engulfing previous candle with high volume")
+// Check for MACD conditions
+bullishMACDCondition = (macdLine > signalLine) or ta.crossover(macdLine, signalLine)
+bearishMACDCondition = (macdLine < signalLine) or ta.crossunder(macdLine, signalLine)
+
+plotshape(bullishCondition and bullishMACDCondition, style = shape.triangleup, location = location.belowbar, color = color.green, size = size.tiny)
+plotshape(bearishCondition and bearishMACDCondition, style = shape.triangledown, location = location.abovebar, color = color.red, size = size.tiny)
+
+alertcondition(bullishCondition and bullishMACDCondition, title = "Bullish Engulfing with High Volume and MACD", message = "[CurrencyPair] [TimeFrame], Bullish candle engulfing previous candle with high volume and MACD condition met")
+alertcondition(bearishCondition and bearishMACDCondition, title = "Bearish Engulfing with High Volume and MACD", message = "[CurrencyPair] [TimeFrame], Bearish candle engulfing previous candle with high volume and MACD condition met")
+
 
 // ================================== BACKTEST ================================== //
 
