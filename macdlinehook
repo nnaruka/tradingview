@@ -1,0 +1,26 @@
+//@version=5
+indicator(title="MACD Buy/Sell Signals", overlay=true)
+
+// Calculate MACD Line (Fast Line)
+fast_length = 12
+slow_length = 26
+signal_length = 9
+src = close
+
+macd_line = ta.ema(src, fast_length) - ta.ema(src, slow_length)
+
+// Calculate Signal Line (Slow Line)
+signal_line = ta.ema(macd_line, signal_length)
+
+// Calculate MACD Histogram
+macd_histogram = macd_line - signal_line
+
+// Buy Condition
+buy_condition = macd_line > 0 and macd_line > signal_line and ta.change(macd_histogram, 1) > 0 and ta.change(macd_histogram, 2) < 0
+
+// Sell Condition
+sell_condition = macd_line < 0 and macd_line < signal_line and ta.change(macd_histogram, 1) < 0 and ta.change(macd_histogram, 2) > 0
+
+// Plot Buy and Sell Signals
+plotshape(buy_condition, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny, text="Buy")
+plotshape(sell_condition, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny, text="Sell")
