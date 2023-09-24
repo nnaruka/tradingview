@@ -1,0 +1,28 @@
+//@version=5
+
+
+indicator(title = "Naresh  Engulfing", overlay = true)
+
+bullsignalone = (open[1] > close [1] and open < close and close >= high[1]) 
+bullsignaltwo = (open[2] > close[2] and open[1] < close[1] and close[1] < high[2] and open < close and close > high[2]) and (not bullsignalone)
+bullsignalthree = (open[3] > close[3] and open[2] <= close[2] and open[1] <= close[1] and open <= close) and (high[3] > close[2] or high[3] > close[1]) and (high[3] < close) and  not bullsignaltwo
+
+
+bearsignalone = (open[1] < close[1] and open > close and close <= low[1]) 
+bearsignaltwo = open[2] < close[2] and open[1] > close[1] and  open > close and open[1] > low[2] and close <= low[2] and not bearsignalone
+bearsignalthree = (open[3] < close[3] and open[2] >= close[2] and open[1] >= close[1] and open >= close) and (low[3] < close[2] or low[3] < close[1]) and low[3] >= close and not bearsignaltwo
+
+
+
+
+//barcolor(signal ? color.yellow :na )
+
+plotshape(bullsignalone, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny,text="1")
+plotshape(bullsignaltwo, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny,text="2")
+plotshape(bullsignalthree, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny,text="3")
+plotshape(bearsignalone, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny)
+plotshape(bearsignaltwo, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny,text="2")
+plotshape(bearsignalthree, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny,text="3")
+
+//alertcondition(bullsignalone, title="Bullish Engulfing", message="Bullish candle engulfing previous candle ")
+//alertcondition(bearsignal, title="Bearish Engulfing", message="Bearish candle engulfing previous candle")
