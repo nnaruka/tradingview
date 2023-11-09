@@ -1,0 +1,20 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © forexguy18
+//@version=5
+indicator("Naresh MACD Hook", overlay=true)
+
+// Calculate MACD
+[macdLine, _, _] = ta.macd(close, 12, 26, 9)
+
+// Previous MACD values
+prev_macd = request.security(syminfo.tickerid, timeframe.period, macdLine[1])
+prev_prev_macd = request.security(syminfo.tickerid, timeframe.period, macdLine[2])
+
+// Conditions to check
+uphook   = ((macdLine > prev_macd) and (prev_macd < prev_prev_macd) and (macdLine > -2 )) or ((macdLine > prev_macd) and (prev_macd == prev_prev_macd) and (macdLine > -2))
+downhook = ((macdLine < prev_macd) and (prev_macd < prev_prev_macd) and (macdLine < 2 )) or ((macdLine < prev_macd) and (prev_macd == prev_prev_macd) and (macdLine < 2))
+
+// Plotting when conditions are met
+plotshape(uphook ? macdLine : na, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny)
+plotshape(downhook ? macdLine : na, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny)
+alertcondition(uphook or downhook, title="Naresh Hook", message="Hook found")
