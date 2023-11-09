@@ -1,0 +1,42 @@
+//@version=5
+indicator("Naresh Custom MACD Buy/Sell Signals", overlay=true)
+
+// MACD Calculation
+fastLength = input(12, title="Fast Length")
+slowLength = input(26, title="Slow Length")
+signalSmoothing = input(9, title="Signal Smoothing")
+[macdLine, signalLine, _] = ta.macd(close, fastLength, slowLength, signalSmoothing)
+
+// Histogram Calculation
+histogram = macdLine - signalLine
+
+// Buy and Sell conditions
+// Buy - 
+// 1. MACD line AZL, 
+// 2. MACD line crossover Signal line and historgram AZL. 
+// 3. MACD AZL and histogram trendline breakout - current histogram is bigger than previous one, and the one previous is falling histogram
+// 4. Bollinger Bands Challenge
+
+length = input.int(20, title="Length")
+src = close
+mult = input.float(2.0, title="Multiplier")
+basis = ta.sma(src, length)
+dev = mult * ta.stdev(src, length)
+upperBand = basis + dev
+lowerBand = basis - dev
+
+buyCondition  = ((macdLine >= 0) and (macdLine[1]<=0) and (histogram >= 0)) or (ta.crossover(macdLine, signalLine)  and (macdLine >= 0)) or ((macdLine >= 0) and histogram > histogram[1] and histogram[1] < histogram[2] and histogram[2] < histogram[3]) or ((macdLine >=0) and close > upperBand) or (( macdLine > signalLine) and  (histogram > histogram[1] and histogram[1] < histogram[2] and histogram[2] < histogram[3]))
+sellCondition = ((macdLine <= 0) and (macdLine[1]>=0) and (histogram <= 0)) or (ta.crossunder(macdLine, signalLine) and (macdLine <= 0)) or ((macdLine <= 0) and histogram < histogram[1] and histogram[1] > histogram[2] and histogram[2] > histogram[3]) or ((macdLine <=0) and close < lowerBand) or (( macdLine < signalLine) and  (histogram < histogram[1] and histogram[1] > histogram[2] and histogram[2] > histogram[3]))
+
+// Plot arrows for buy and sell signals
+//plotshape(series=buyCondition, title="Buy Signal", location=location.belowbar, color=color.green, style=shape.labelup, text="Buy")
+//plotshape(series=buyCondition, title="Buy Signal", location=location.absolute, color=color.green, style=shape.labelup, size=size.tiny, text="Buy")
+
+plotshape(series=buyCondition, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny,text="B")
+plotshape(series=sellCondition, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny,text="S")
+
+
+//Generate only single signal, not to put so many signal
+//alertcondition(buyCondition, title='Buy Signal Alert', message='Buy Signal Detected')
+//alertcondition(sellCondition, title='Sell Signal Alert', message='Sell Signal Detected')
+alertcondition(buyCondition or sellCondition, title='Buy or Sell', message='Buy/Sell Signal Detected')
