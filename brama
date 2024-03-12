@@ -1,0 +1,904 @@
+
+//@version=5
+indicator("Trading_Learner brahmastra V3", overlay = true, max_labels_count = 500, max_boxes_count = 500, max_lines_count = 500, max_bars_back = 5000)
+//Sonar + Chor candle + Advance Support/Demand + AI + Bottom/Top + Sheshnaag
+
+textDate = timestamp(2023, 01, 01)
+var int textBarIndex = na
+if time[1] < textDate and time >= textDate
+    textBarIndex := bar_index
+
+
+// Brahmastra OB code is here
+
+//      INDICATOR SETTINGS
+swing_length = input.int(8, title = 'Swing High/Low Length', group = 'Settings', minval = 1, maxval = 50)
+history_of_demand_to_keep = input.int(20, title = 'History To Keep', minval = 5, maxval = 50)
+box_width = input.float(9, title = 'Supply/Demand Box Width', group = 'Settings', minval = 1, maxval = 10, step = 0.5)
+
+//      INDICATOR VISUAL SETTINGS
+//show_zigzag = input.bool(true, title = 'Show Zig Zag', group = 'Visual Settings', inline = '1')
+show_price_action_labels = input.bool(true, title = 'Show Price Action Labels', group = 'Visual Settings', inline = '2')
+
+supply_color = input.color(color.new(#a52323, 65), title = 'Supply Zone', group = 'Visual Settings', inline = '3')
+supply_outline_color = input.color(color.new(color.white,75), title = 'Outline', group = 'Visual Settings', inline = '3')
+
+demand_color = input.color(color.new(#0cda40, 21), title = 'Demand Zone', group = 'Visual Settings', inline = '4')
+demand_outline_color = input.color(color.new(color.white,75), title = 'Outline', group = 'Visual Settings', inline = '4')
+
+bos_label_color = input.color(color.rgb(15, 14, 14, 3), title = 'BOS', group = 'Visual Settings', inline = '10')
+poi_label_color = input.color(color.rgb(19, 18, 18, 7), title = 'POI', group = 'Visual Settings', inline = '10')
+
+swing_type_color = input.color(color.black, title = 'Price Action Label', group = 'Visual Settings', inline = '10')
+zigzag_color = input.color(color.new(#000000,0), title = 'Zig Zag', group = 'Visual Settings', inline = '10')
+
+//END SETTINGS
+
+//FUNCTIONS Starts from here
+
+//      FUNCTION TO ADD NEW AND REMOVE LAST IN ARRAY
+f_array_add_pop(array, new_value_to_add) =>
+    array.unshift(array, new_value_to_add)
+    array.pop(array)
+
+//      FUNCTION SWING H & L LABELS
+f_sh_sl_labels(array, swing_type) =>
+
+    var string label_text = na
+    if swing_type == 1
+        if array.get(array, 0) >= array.get(array, 1)
+            label_text := 'HH'
+        else
+            label_text := 'LH'
+        label.new(bar_index - swing_length, array.get(array,0), text = label_text, style=label.style_label_down, textcolor = swing_type_color, color = color.new(swing_type_color, 100), size = size.small)
+    
+    else if swing_type == -1
+        if array.get(array, 0) >= array.get(array, 1)
+            label_text := 'HL'
+        else
+            label_text := 'LL'
+        label.new(bar_index - swing_length, array.get(array,0), text = label_text, style=label.style_label_up, textcolor = swing_type_color, color = color.new(swing_type_color, 100), size = size.small)
+
+//      FUNCTION MAKE SURE SUPPLY ISNT OVERLAPPING
+f_check_overlapping(new_poi, box_array, atr) =>
+
+    atr_threshold = atr * 2
+    okay_to_draw = true
+
+    for i = 0 to array.size(box_array) - 1
+        top = box.get_top(array.get(box_array, i))
+        bottom = box.get_bottom(array.get(box_array, i))
+        poi = (top + bottom) / 2
+
+        upper_boundary = poi + atr_threshold
+        lower_boundary = poi - atr_threshold
+
+        if new_poi >= lower_boundary and new_poi <= upper_boundary
+            okay_to_draw := false
+            break
+        else 
+            okay_to_draw := true
+    okay_to_draw
+
+
+//      FUNCTION TO DRAW SUPPLY OR DEMAND ZONE
+f_supply_demand(value_array, bn_array, box_array, label_array, box_type, atr) =>
+
+    atr_buffer = atr * (box_width / 10)
+    box_left = array.get(bn_array, 0)
+    box_right = bar_index
+
+    var float box_top = 0.00
+    var float box_bottom = 0.00
+    var float poi = 0.00
+
+
+    if box_type == 1
+        box_top := array.get(value_array, 0)
+        box_bottom := box_top - atr_buffer
+        poi := (box_top + box_bottom) / 2
+    else if box_type == -1
+        box_bottom := array.get(value_array, 0)
+        box_top := box_bottom + atr_buffer
+        poi := (box_top + box_bottom) / 2
+
+    okay_to_draw = f_check_overlapping(poi, box_array, atr)
+    // okay_to_draw = true
+
+    //delete oldest box, and then create a new box and add it to the array
+    if box_type == 1 and okay_to_draw
+        box.delete( array.get(box_array, array.size(box_array) - 1) )
+        f_array_add_pop(box_array, box.new( left = box_left, top = box_top, right = box_right, bottom = box_bottom, border_color = supply_outline_color,
+             bgcolor = supply_color, extend = extend.right, text = 'S u p p l y   Z o n e   h a i   y a n h aa n ', text_halign = text.align_center, text_valign = text.align_center, text_color = color.rgb(17, 18, 19), text_size = size.normal, xloc = xloc.bar_index))
+        
+        box.delete( array.get(label_array, array.size(label_array) - 1) )
+        f_array_add_pop(label_array, box.new( left = box_left, top = poi, right = box_right, bottom = poi, border_color = color.new(#0f0f0f, 79),
+             bgcolor = color.new(poi_label_color,90), extend = extend.right, text = 'Laksman Rekha', text_halign = text.align_center, text_valign = text.align_bottom, text_color = color.rgb(11, 68, 224), text_size = size.normal, xloc = xloc.bar_index))
+
+    else if box_type == -1 and okay_to_draw
+        box.delete( array.get(box_array, array.size(box_array) - 1) )
+        f_array_add_pop(box_array, box.new( left = box_left, top = box_top, right = box_right, bottom = box_bottom, border_color = demand_outline_color,
+             bgcolor = demand_color, extend = extend.right,  text = 'D e m a n d   Z o n e   h a i   y a n h a a n ', text_halign = text.align_center, text_valign = text.align_top, text_color = color.rgb(17, 18, 19), text_size = size.normal, xloc = xloc.bar_index))
+        
+        box.delete( array.get(label_array, array.size(label_array) - 1) )
+        f_array_add_pop(label_array, box.new( left = box_left, top = poi, right = box_right, bottom = poi, border_color = color.new(#0f0f0f, 79),
+             bgcolor = color.new(poi_label_color,90), extend = extend.right,  text = 'Angad ka paanv', text_halign = text.align_left, text_valign = text.align_top, text_color = color.rgb(11, 68, 224), text_size = size.normal, xloc = xloc.bar_index))
+
+
+//      FUNCTION TO CHANGE SUPPLY/DEMAND TO A BOS IF BROKEN
+f_sd_to_bos(box_array, bos_array, label_array, zone_type) =>
+
+    if zone_type == 1
+        for i = 0 to array.size(box_array) - 1
+            level_to_break = box.get_top(array.get(box_array,i))
+            
+            if close >= level_to_break
+                copied_box = box.copy(array.get(box_array,i))
+                f_array_add_pop(bos_array, copied_box)
+                mid = (box.get_top(array.get(box_array,i)) + box.get_bottom(array.get(box_array,i))) / 2
+                box.set_top(array.get(bos_array,0), mid)
+                box.set_bottom(array.get(bos_array,0), mid)
+                box.set_extend( array.get(bos_array,0), extend.none)
+                box.set_right( array.get(bos_array,0), bar_index)
+
+                // Get the current date and time in Pine Script
+                formatted_datetime = str.tostring(dayofmonth) + "-" + str.tostring(month) + "-" + str.tostring(year) + "  " + str.tostring(hour) + ":" + str.tostring(minute) + ":" + str.tostring(second)
+
+                // Update the box text with date and time
+                box.set_text( array.get(bos_array,0), 'Supply Zone tuti yanhaan\n' + formatted_datetime )
+
+                box.set_text_color( array.get(bos_array,0),color.rgb(5, 128, 77))
+                box.set_text_size( array.get(bos_array,0), size.small)
+                //box.set_text_halign( array.get(bos_array,0), text.align_center)
+                //box.set_text_valign( array.get(bos_array,0), text.align_center)
+                box.delete(array.get(box_array, i))
+                box.delete(array.get(label_array, i))
+
+
+    if zone_type == -1
+        for i = 0 to array.size(box_array) - 1
+            level_to_break = box.get_bottom(array.get(box_array,i))
+            // if ta.crossunder(close, level_to_break)
+            if close <= level_to_break
+                copied_box = box.copy(array.get(box_array,i))
+                f_array_add_pop(bos_array, copied_box)
+                mid = (box.get_top(array.get(box_array,i)) + box.get_bottom(array.get(box_array,i))) / 2
+                box.set_top(array.get(bos_array,0), mid)
+                box.set_bottom(array.get(bos_array,0), mid)
+                box.set_extend( array.get(bos_array,0), extend.none)
+                box.set_right( array.get(bos_array,0), bar_index)
+
+                // Get the current date and time in Pine Script
+                formatted_datetime = str.tostring(year) + "-" + str.tostring(month) + "-" + str.tostring(dayofmonth) + " " + str.tostring(hour) + ":" + str.tostring(minute) + ":" + str.tostring(second)
+
+                // Update the box text with date and time
+                box.set_text( array.get(bos_array,0), 'Demand Zone tuti yanhaan\n' + formatted_datetime )
+
+                //box.set_text( array.get(bos_array,0), 'Supply Zone tuti yanhaan' )
+                box.set_text_color( array.get(bos_array,0), color.rgb(228, 15, 26, 6))
+                box.set_text_size( array.get(bos_array,0), size.small)
+                box.set_text_halign( array.get(bos_array,0), text.align_center)
+                box.set_text_valign( array.get(bos_array,0), text.align_center)
+                box.delete(array.get(box_array, i))
+                box.delete(array.get(label_array, i))
+
+
+
+//      FUNCTION MANAGE CURRENT BOXES BY CHANGING ENDPOINT
+f_extend_box_endpoint(box_array) =>
+
+    for i = 0 to array.size(box_array) - 1
+        box.set_right(array.get(box_array, i), bar_index + 100)
+
+
+
+// Brahmastra OB code ends here
+
+
+/// Yanhaan se swing high aur Low ki calculation hai
+
+//      CALCULATE ATR 
+atr = ta.atr(50)
+
+//      CALCULATE SWING HIGHS & SWING LOWS
+swing_high = ta.pivothigh(high, swing_length, swing_length)
+swing_low = ta.pivotlow(low, swing_length, swing_length)
+
+//      ARRAYS FOR SWING H/L & BN 
+var swing_high_values = array.new_float(5,0.00)
+var swing_low_values = array.new_float(5,0.00)
+
+var swing_high_bns = array.new_int(5,0)
+var swing_low_bns = array.new_int(5,0)
+
+//      ARRAYS FOR SUPPLY / DEMAND
+var current_supply_box = array.new_box(history_of_demand_to_keep, na)
+var current_demand_box = array.new_box(history_of_demand_to_keep, na)
+
+//      ARRAYS FOR SUPPLY / DEMAND POI LABELS
+var current_supply_poi = array.new_box(history_of_demand_to_keep, na)
+var current_demand_poi = array.new_box(history_of_demand_to_keep, na)
+
+//      ARRAYS FOR BOS
+var supply_bos = array.new_box(5, na)
+var demand_bos = array.new_box(5, na)
+//
+//END CALCULATIONS
+
+//      NEW SWING HIGH
+if not na(swing_high)
+
+    //MANAGE SWING HIGH VALUES
+    f_array_add_pop(swing_high_values, swing_high)
+    f_array_add_pop(swing_high_bns, bar_index[swing_length])
+    if show_price_action_labels
+        f_sh_sl_labels(swing_high_values, 1)
+
+    f_supply_demand(swing_high_values, swing_high_bns, current_supply_box, current_supply_poi, 1, atr)
+
+//      NEW SWING LOW
+else if not na(swing_low)
+
+    //MANAGE SWING LOW VALUES
+    f_array_add_pop(swing_low_values, swing_low)
+    f_array_add_pop(swing_low_bns, bar_index[swing_length])
+    if show_price_action_labels
+        f_sh_sl_labels(swing_low_values, -1)
+    
+    f_supply_demand(swing_low_values, swing_low_bns, current_demand_box, current_demand_poi, -1, atr)
+
+
+f_sd_to_bos(current_supply_box, supply_bos, current_supply_poi, 1)
+f_sd_to_bos(current_demand_box, demand_bos, current_demand_poi, -1)
+
+f_extend_box_endpoint(current_supply_box)
+f_extend_box_endpoint(current_demand_box)
+
+
+
+
+
+
+
+
+//indicator("CHOR CANDLE Bar by tRADING_LEARNER", "CHOR CANDLE", overlay=true)
+//Special Thanks to Piyush for helping wiht this version
+
+var bool highClose = false
+var bool lowClose = false
+var bool bullishPinBar = false
+var bool bearishPinBar = false
+var bool ectopicPinBar = false
+var bool Redcandle = false
+var bool Greencandle = false
+var bool ectopicBar = false
+
+
+useCustomTimeframeInput = input.bool(false, "Use custom timeframe")
+lowerTimeframeInput = input.timeframe("timeframe.sesstolong(chartTimeframe)", "Volume Timeframe")
+closeRange = input.float(0.35, title="Close Range", minval=0.05, maxval=0.75, step=0.05)
+
+barRange = (open - close)
+if barRange < 0
+    Redcandle := true
+else
+    Greencandle := true
+
+//Find Ectopic candle
+upAndDownVolume() =>
+    posVol = 0.0
+    negVol = 0.0
+    
+    switch
+        close >  open     => posVol += volume
+        close <  open     => negVol -= volume
+        close >= close[1] => posVol += volume
+        close <  close[1] => negVol -= volume
+
+    [posVol, negVol]
+
+lowerTimeframe = switch
+    useCustomTimeframeInput => lowerTimeframeInput
+    timeframe.isintraday    => "1"
+    timeframe.isdaily       => "5"
+    => "60"
+
+[upVolumeArray, downVolumeArray] = request.security_lower_tf(syminfo.tickerid, lowerTimeframe, upAndDownVolume())
+
+upVolume = array.sum(upVolumeArray)
+downVolume = array.sum(downVolumeArray)
+delta = upVolume + downVolume
+
+
+
+ectopicBar := (Redcandle and (math.abs(upVolume * 1.5) < math.abs( downVolume))) or (Greencandle and (math.abs(downVolume * 1.5) < math.abs(upVolume)))
+//ectopicBar := (Redcandle and (math.abs(upVolume) < math.abs( downVolume))) or (Greencandle and (math.abs(downVolume) < math.abs(upVolume)))
+// ectopicBar := (Greencandle and (math.abs(downVolume) < math.abs(upVolume)))
+ectopicBarColor = ectopicBar ? color.yellow : na
+barcolor(ectopicBarColor, title="Chor Candle")
+
+// reset the variables
+highClose := false
+lowClose := false
+bullishPinBar := false
+bearishPinBar := false
+ectopicPinBar := false
+ectopicBar := false
+Redcandle := false
+Greencandle := false
+
+
+
+// Market Structure Break
+
+settings = "Settings"
+zigzag_len = input.int(9, "Zig Zag Length", group=settings)
+show_zigzag = input.bool(true, "Show Zig zag", group=settings)
+fib_factor = input.float(0.33, "Fib Factor for breakout confirmation", 0, 1, 0.01, group=settings)
+
+text_size = input.string(size.small, "Text Size", [size.tiny, size.small, size.normal, size.large, size.huge], group=settings)
+
+delete_boxes = input.bool(true, "Delete Old/Broken Boxes", group=settings)
+
+bu_ob_inline_color = "Bu-OB Colors"
+be_ob_inline_color = "Be-OB Colors"
+bu_bb_inline_color = "Bu-BB Colors"
+be_bb_inline_color = "Be-BB Colors"
+
+bu_ob_display_settings = "Bu-OB Display Settings"
+bu_ob_color = input.color(#ffffff00, "Color", group=bu_ob_display_settings, inline=bu_ob_inline_color)
+bu_ob_border_color = input.color(#ffffff00, "Border Color", group=bu_ob_display_settings, inline=bu_ob_inline_color)
+bu_ob_text_color = input.color(#ffffff00, "Text Color", group=bu_ob_display_settings, inline=bu_ob_inline_color)
+
+be_ob_display_settings = "Be-OB Display Settings"
+be_ob_color = input.color(#ffffff00, "Color", group=be_ob_display_settings, inline=be_ob_inline_color)
+be_ob_border_color = input.color(#ffffff00, "Border Color", group=be_ob_display_settings, inline=be_ob_inline_color)
+be_ob_text_color = input.color(#ffffff00, "Text Color", group=be_ob_display_settings, inline=be_ob_inline_color)
+
+bu_bb_display_settings = "Bu-BB & Bu-MB Display Settings"
+bu_bb_color = input.color(#ffffff00, "Color", group=bu_bb_display_settings, inline=bu_bb_inline_color)
+bu_bb_border_color = input.color(#ffffff00, "Border Color", group=bu_bb_display_settings, inline=bu_bb_inline_color)
+bu_bb_text_color = input.color(#ffffff00, "Text Color", group=bu_bb_display_settings, inline=bu_bb_inline_color)
+
+be_bb_display_settings = "Be-BB & Be-MB Display Settings"
+be_bb_color = input.color(#ffffff00, "Color", group=be_bb_display_settings, inline=be_bb_inline_color)
+be_bb_border_color = input.color(#ffffff00, "Border Color", group=be_bb_display_settings, inline=be_bb_inline_color)
+be_bb_text_color = input.color(#FFFFFF00, "Text Color", group=be_bb_display_settings, inline=be_bb_inline_color)
+
+
+var float[] high_points_arr = array.new_float(5)
+var int[] high_index_arr = array.new_int(5)
+var float[] low_points_arr = array.new_float(5)
+var int[] low_index_arr = array.new_int(5)
+
+var box[] bu_ob_boxes = array.new_box(5)
+var box[] be_ob_boxes = array.new_box(5)
+var box[] bu_bb_boxes = array.new_box(5)
+var box[] be_bb_boxes = array.new_box(5)
+
+to_up = high >= ta.highest(zigzag_len)
+to_down = low <= ta.lowest(zigzag_len)
+
+trend = 1
+trend := nz(trend[1], 1)
+trend := trend == 1 and to_down ? -1 : trend == -1 and to_up ? 1 : trend
+
+last_trend_up_since = ta.barssince(to_up[1])
+low_val = ta.lowest(nz(last_trend_up_since > 0 ? last_trend_up_since : 1, 1))
+low_index = bar_index - ta.barssince(low_val == low)
+
+last_trend_down_since = ta.barssince(to_down[1])
+high_val = ta.highest(nz(last_trend_down_since > 0 ? last_trend_down_since : 1, 1))
+high_index = bar_index - ta.barssince(high_val == high)
+
+if ta.change(trend) != 0
+    if trend == 1
+        array.push(low_points_arr, low_val)
+        array.push(low_index_arr, low_index)
+    if trend == -1
+        array.push(high_points_arr, high_val)
+        array.push(high_index_arr, high_index)
+
+
+f_get_high(ind) =>
+    [array.get(high_points_arr, array.size(high_points_arr) - 1 - ind), array.get(high_index_arr, array.size(high_index_arr) - 1 - ind)]
+
+
+f_get_low(ind) =>
+    [array.get(low_points_arr, array.size(low_points_arr) - 1 - ind), array.get(low_index_arr, array.size(low_index_arr) - 1 - ind)]
+
+
+f_delete_box(box_arr) =>
+    if delete_boxes
+        box.delete(array.shift(box_arr))
+    else
+        array.shift(box_arr)
+    0
+
+
+[h0, h0i] = f_get_high(0)
+[h1, h1i] = f_get_high(1)
+
+[l0, l0i] = f_get_low(0)
+[l1, l1i] = f_get_low(1)
+
+if ta.change(trend) != 0 and show_zigzag
+    if trend == 1
+        line.new(h0i, h0, l0i, l0)
+    if trend == -1
+        line.new(l0i, l0, h0i, h0)
+
+market = 1
+market := nz(market[1], 1)
+// market := market == 1 and close < l0 and low < l0 - math.abs(h0 - l0) * fib_factor ? -1 : market == -1 and close > h0 and high > h0 + math.abs(h0 - l0) * fib_factor ? 1 : market
+last_l0 = ta.valuewhen(ta.change(market) != 0, l0, 0)
+last_h0 = ta.valuewhen(ta.change(market) != 0, h0, 0)
+market := last_l0 == l0 or last_h0 == h0 ? market : market == 1 and l0 < l1 and l0 < l1 - math.abs(h0 - l1) * fib_factor ? -1 : market == -1 and h0 > h1 and h0 > h1 + math.abs(h1 - l0) * fib_factor ? 1 : market
+
+bu_ob_index = bar_index
+bu_ob_index := nz(bu_ob_index[1], bar_index)
+for i=h1i to l0i[zigzag_len]
+    index = bar_index - i 
+    if open[index] > close[index]
+        bu_ob_index := bar_index[index]
+
+bu_ob_since = bar_index - bu_ob_index
+
+be_ob_index = bar_index
+be_ob_index := nz(be_ob_index[1], bar_index)
+for i=l1i to h0i[zigzag_len]
+    index = bar_index - i 
+    if open[index] < close[index]
+        be_ob_index := bar_index[index]
+
+be_ob_since = bar_index - be_ob_index
+
+be_bb_index = bar_index
+be_bb_index := nz(be_bb_index[1], bar_index)
+for i=h1i - zigzag_len to l1i
+    index = bar_index - i
+    if open[index] > close[index]
+        be_bb_index := bar_index[index]
+
+be_bb_since = bar_index - be_bb_index
+
+bu_bb_index = bar_index
+bu_bb_index := nz(bu_bb_index[1], bar_index)
+for i=l1i - zigzag_len to h1i
+    index = bar_index - i
+    if open[index] < close[index]
+        bu_bb_index := bar_index[index]
+
+bu_bb_since = bar_index - bu_bb_index
+
+if ta.change(market) != 0
+    if market == 1
+        line.new(h1i, h1, h0i, h1, color=color.rgb(12, 14, 12), width=3)
+        label.new(int(math.avg(h1i, l0i)), h1, "BUYING ALERT: ES LINE KE UPPER BUYING DEKHENA", color=color.new(color.black, 100), style=label.style_label_down, textcolor=color.green, size=size.normal)
+        bu_ob = box.new(bu_ob_index, high[bu_ob_since], bar_index + 10, low[bu_ob_since], bgcolor=bu_ob_color, border_color=bu_ob_border_color, text="Bu-OB", text_color=bu_ob_text_color, text_halign=text.align_right, text_size=text_size)
+        bu_bb = box.new(bu_bb_index, high[bu_bb_since], bar_index + 10, low[bu_bb_since], bgcolor=bu_bb_color, border_color=bu_bb_border_color, text=l0 < l1 ? "Bu-BB" : "Bu-MB", text_color=bu_bb_text_color, text_halign=text.align_right, text_size=text_size)
+        array.push(bu_ob_boxes, bu_ob)
+        array.push(bu_bb_boxes, bu_bb)
+        //EXTEND THE LINR
+    
+    if market == -1
+        line.new(l1i, l1, l0i, l1, color=color.rgb(12, 14, 12), width=3)
+        label.new(int(math.avg(l1i, h0i)), l1, "SELLING ALERT: ES LINE KE NICHE SELLING DEKHENA ", color=color.new(color.black, 100), style=label.style_label_up, textcolor=color.red, size=size.normal)
+        be_ob = box.new(be_ob_index, high[be_ob_since], bar_index + 10, low[be_ob_since], bgcolor=be_ob_color, border_color=be_ob_border_color, text="Be-OB", text_color=be_ob_text_color, text_halign=text.align_right, text_size=text_size)
+        be_bb = box.new(be_bb_index, high[be_bb_since], bar_index + 10, low[be_bb_since], bgcolor=be_bb_color, border_color=be_bb_border_color, text=h0 > h1 ? "Be-BB" : "Be-MB", text_color=be_bb_text_color, text_halign=text.align_right, text_size=text_size)
+        array.push(be_ob_boxes, be_ob)
+        array.push(be_bb_boxes, be_bb)
+
+for bull_ob in bu_ob_boxes
+    bottom = box.get_bottom(bull_ob)
+    top = box.get_top(bull_ob)
+    if close < bottom
+        f_delete_box(bu_ob_boxes)
+    else if close < top
+        alert("Price in the BU-OB zone")
+    else
+        box.set_right(bull_ob, bar_index + 10)
+    
+for bear_ob in be_ob_boxes
+    top = box.get_top(bear_ob)
+    bottom = box.get_bottom((bear_ob))
+    if close > top
+        f_delete_box(be_ob_boxes)
+    if close > bottom
+        alert("Price in the BE-OB zone")
+    else
+        box.set_right(bear_ob, bar_index + 10)
+        
+for bear_bb in be_bb_boxes
+    top = box.get_top(bear_bb)
+    bottom = box.get_bottom(bear_bb)
+    if close > top
+        f_delete_box(be_bb_boxes)
+    else if close > bottom
+        alert("Price in the BE-BB zone")
+    else
+        box.set_right(bear_bb, bar_index + 10)
+        
+for bull_bb in bu_bb_boxes
+    bottom = box.get_bottom(bull_bb)
+    top = box.get_top(bull_bb)
+    if close < bottom
+        f_delete_box(bu_bb_boxes)
+    else if close < top
+        alert("Price in the BU-BB zone")
+    else
+        box.set_right(bull_bb, bar_index + 10)
+
+
+alertcondition(ta.change(market) != 0, "MSB", "MSB")
+
+
+
+
+
+
+
+Sheshnag = input.int(14, title="Sheshnag", minval=1)
+source = close
+mg = 0.0
+
+// Calculate the EMA value only once
+emaValue = ta.ema(source, Sheshnag)
+
+mg := na(mg[1]) ? emaValue : mg[1] + (source - mg[1]) / (Sheshnag * math.pow(source/mg[1], 4))
+
+// Input options for color
+line_color = input(color.new(#121213, 0), title="Line Color")
+line_width = input.int(1, title="Line Width")
+
+plot(mg, title="Sheshnag", color=line_color, linewidth=line_width)
+
+// Pamban zone and day break and table
+
+// Check the time of the last session's candle closing at 3:25
+lastSessionTime = timestamp(year(timenow), month(timenow), dayofmonth(timenow), 15, 25)
+
+// Get the high and low prices of the candle at 3:25 of the last trading session
+highPrice = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+lowPrice = request.security(syminfo.tickerid, "D", low[1], lookahead=barmerge.lookahead_on)
+
+// If the current time is before 3:25 of the last trading session
+if (time < lastSessionTime and time > lastSessionTime - 1000*60*5)
+    // Draw a box using the high and low prices
+    box.new(left=lastSessionTime, top=highPrice, right=lastSessionTime+1000*60*5, bottom=lowPrice, border_color=color.rgb(15, 16, 17, 14), border_width=2, bgcolor=color.new(#020c14, 90))
+
+
+//@version=5
+//indicator('OB LEO', format=format.price, precision=4, overlay=true)
+
+//colors = input.string(title='Color Scheme', defval='BRIGHT', options=['DARK', 'BRIGHT'])
+periods = input(5, 'Relevant Periods to identify OB')
+threshold = input.float(0.0, 'Min. Percent move to identify OB', step=0.1)
+usewicks = input(false, 'Use whole range [High/Low] for OB marking?')
+showbull = input(true, 'Show latest Bullish Channel?')
+showbear = input(true, 'Show latest Bearish Channel?')
+info_pan = input(false, 'Show Latest OB Panel?')
+
+ob_period = periods + 1
+absmove = math.abs(close[ob_period] - close[1]) / close[ob_period] * 100
+relmove = absmove >= threshold
+
+bullcolor = color.green
+bearcolor = color.red
+
+bullishOB = close[ob_period] < open[ob_period]
+int upcandles = 0
+for i = 1 to periods by 1
+    upcandles += (close[i] > open[i] ? 1 : 0)
+OB_bull = bullishOB and upcandles == periods and relmove
+OB_bull_high = OB_bull ? usewicks ? high[ob_period] : open[ob_period] : na
+OB_bull_low = OB_bull ? low[ob_period] : na
+OB_bull_avg = (OB_bull_high + OB_bull_low) / 2
+
+bearishOB = close[ob_period] > open[ob_period]
+int downcandles = 0
+for i = 1 to periods by 1
+    downcandles += (close[i] < open[i] ? 1 : 0)
+OB_bear = bearishOB and downcandles == periods and relmove
+OB_bear_high = OB_bear ? high[ob_period] : na
+OB_bear_low = OB_bear ? usewicks ? low[ob_period] : open[ob_period] : na
+OB_bear_avg = (OB_bear_low + OB_bear_high) / 2
+
+plotshape(OB_bull, title='Yanhaan per Kharida na', style=shape.triangleup, color=bullcolor, textcolor=bullcolor, size=size.tiny, location=location.belowbar, offset=-ob_period, text='Yanhaan per Kharida na ?')
+bull1 = plot(OB_bull_high, title='Bullish OB High', style=plot.style_linebr, color=bullcolor, offset=-ob_period, linewidth=3)
+bull2 = plot(OB_bull_low, title='Bullish OB Low', style=plot.style_linebr, color=bullcolor, offset=-ob_period, linewidth=3)
+
+plotshape(OB_bear, title='Yanhaan per becha tha na', style=shape.triangledown, color=bearcolor, textcolor=bearcolor, size=size.tiny, location=location.abovebar, offset=-ob_period, text='Yanhaan per becha tha na ?')
+bear1 = plot(OB_bear_low, title='Bearish OB Low', style=plot.style_linebr, color=bearcolor, offset=-ob_period, linewidth=3)
+bear2 = plot(OB_bear_high, title='Bearish OB High', style=plot.style_linebr, color=bearcolor, offset=-ob_period, linewidth=3)
+
+var line linebull1 = na
+var line linebull2 = na
+var line linebull3 = na
+var line linebear1 = na
+var line linebear2 = na
+var line linebear3 = na
+
+if OB_bull and showbull
+    line.delete(linebull1)
+    linebull1 := line.new(x1=bar_index, y1=OB_bull_avg, x2=bar_index - 1, y2=OB_bull_avg, extend=extend.none, color=bullcolor, style=line.style_dashed, width=1)
+
+    line.delete(linebull2)
+    linebull2 := line.new(x1=bar_index, y1=OB_bull_high, x2=bar_index - 1, y2=OB_bull_high, extend=extend.none, color=bullcolor, style=line.style_dotted, width=1)
+
+    line.delete(linebull3)
+    linebull3 := line.new(x1=bar_index, y1=OB_bull_low, x2=bar_index - 1, y2=OB_bull_low, extend=extend.none, color=bullcolor, style=line.style_dotted, width=1)
+
+if OB_bear and showbear
+    line.delete(linebear1)
+    linebear1 := line.new(x1=bar_index, y1=OB_bear_avg, x2=bar_index - 1, y2=OB_bear_avg, extend=extend.none, color=bearcolor, style=line.style_dashed, width=1)
+
+    line.delete(linebear2)
+    linebear2 := line.new(x1=bar_index, y1=OB_bear_high, x2=bar_index - 1, y2=OB_bear_high, extend=extend.none, color=bearcolor, style=line.style_dotted, width=1)
+
+    line.delete(linebear3)
+    linebear3 := line.new(x1=bar_index, y1=OB_bear_low, x2=bar_index - 1, y2=OB_bear_low, extend=extend.none, color=bearcolor, style=line.style_dotted, width=1)
+
+alertcondition(OB_bull, title='New Bullish OB detected', message='New Bullish OB detected - This is NOT a BUY signal!')
+alertcondition(OB_bear, title='New Bearish OB detected', message='New Bearish OB detected - This is NOT a SELL signal!')
+
+var latest_bull_high = 0.0
+var latest_bull_avg = 0.0
+var latest_bull_low = 0.0
+var latest_bear_high = 0.0
+var latest_bear_avg = 0.0
+var latest_bear_low = 0.0
+
+if OB_bull_high > 0
+    latest_bull_high := OB_bull_high
+
+if OB_bull_avg > 0
+    latest_bull_avg := OB_bull_avg
+
+if OB_bull_low > 0
+    latest_bull_low := OB_bull_low
+
+if OB_bear_high > 0
+    latest_bear_high := OB_bear_high
+
+if OB_bear_avg > 0
+    latest_bear_avg := OB_bear_avg
+
+if OB_bear_low > 0
+    latest_bear_low := OB_bear_low
+
+///// IB Pamban zone and table////
+
+
+ib_session = input.session("1525-1530", title="Calculation period for the initial balance", group="Calculation period")
+
+show_extra_levels = input.bool(false, "Show extra levels (IBH x2 & IBL x2)", group="Information")
+show_intermediate_levels = input.bool(true, "Show intermediate levels (50%)", group="Information")
+show_ib_calculation_area = input.bool(true, "Initial balance calculation period coloration", group="Information")
+show_labels = input.bool(true, "Show labels", group="Information")
+fill_ib_areas = input.bool(true, "Colour IB areas", group="Information")
+only_current_levels = input.bool(false, "Only display the current IB Levels", group="Information")
+only_current_zone = input.bool(false, "Only display the current IB calculation area", group="Information")
+
+
+
+label_size = input.string("normal", title="Label Size", options=["Auto", "Huge", "normal","Large", "Small", "Tiny"], group="Drawings")
+lvl_width = input.int(5, "Daily price level width", group="Drawings")
+high_col = input.color(color.rgb(175, 12, 148), "Initial balance high levels color", group="Drawings")
+low_col = input.color(color.rgb(175, 12, 148), "Initial balance low levels color", group="Drawings")
+middle_col = input.color(#ffa726, "50% initial balance color", group="Drawings")
+extend_level = input.string("Right", title="Extend current levels", options=["Right", "Left", "Both", "None"], group="Drawings")
+
+main_levels_style = input.string("Solid" , "Main levels line style", options=["Solid", "Dashed", "Dotted"], group="Drawings")
+ext_levels_style = input.string("Solid" , "Extended levels line style", options=["Solid", "Dashed", "Dotted"], group="Drawings")
+int_levels_style = input.string("Solid" , "Intermediate levels line style", options=["Solid", "Dashed", "Dotted"], group="Drawings")
+
+fill_ib_color= input.color(#b8851faa, "IB area background color", group="Drawings")
+ext = extend_level == "Right" ? extend.right : extend_level == "Left" ? extend.left : extend_level == "Both" ? extend.both : extend.none
+
+var delta_history = array.new_float(20)
+
+inSession(sess) => na(time(timeframe.period, sess)) == false
+
+get_line_style(s) =>
+    s == "Solid" ? line.style_solid : s == "Dotted" ? line.style_dotted : line.style_dashed
+
+get_levels(n) =>
+    h = high[1]
+    l = low[1]
+    for i=1 to n
+        if low[i] < l
+            l := low[i]
+        if high[i] > h
+            h := high[i]
+    [h, l, (h+l)/2]
+
+var line ibh = na
+var line ibl = na
+var line ibm = na
+var line ib_plus = na
+var line ib_minus = na
+var line ib_plus2 = na
+var line ib_minus2 = na
+var line ibm_plus = na
+var line ibm_minus = na
+
+var label labelh = na
+var label labell = na
+var label labelm = na
+var label label_plus = na
+var label label_minus = na
+var label label_plus2 = na
+var label label_minus2 = na
+var label labelm_plus = na
+var label labelm_minus = na
+var box ib_area = na
+
+labelSize = (label_size == "Huge") ? size.huge :
+     (label_size == "Large") ? size.large :
+     (label_size == "Small") ? size.small :
+     (label_size == "Tiny") ? size.tiny :
+     (label_size == "Auto") ? size.auto : size.normal
+
+var offset = 0
+
+ins = inSession(ib_session)
+
+bgcolor(show_ib_calculation_area and ins ? #673ab730 : na, title="IB calculation zone")
+var float ib_delta = na
+
+if ins
+    offset += 1
+if ins[1] and not ins
+    [h, l, m] = get_levels(offset)
+    ib_delta := h - l
+    if array.size(delta_history) >= 10
+        array.shift(delta_history)
+    array.push(delta_history, ib_delta)
+    
+    line.set_extend(ibh, extend.none)
+    line.set_extend(ibl, extend.none)
+    if show_intermediate_levels
+        line.set_extend(ibm, extend.none)
+    if show_extra_levels
+        line.set_extend(ib_plus, extend.none)
+        line.set_extend(ib_minus, extend.none)
+        line.set_extend(ib_plus2, extend.none)
+        line.set_extend(ib_minus2, extend.none)
+        if show_intermediate_levels
+            line.set_extend(ibm_plus, extend.none)
+            line.set_extend(ibm_minus, extend.none)
+    if show_labels
+        if only_current_levels
+            label.delete(labelh)
+            label.delete(labell)
+            label.delete(labelm)
+            label.delete(label_plus)
+            label.delete(label_minus)
+            label.delete(label_plus2)
+            label.delete(label_minus2)
+            label.delete(labelm_plus)
+            label.delete(labelm_minus)
+        labelh := label.new(bar_index[offset], h, text="PAMBAN ZONE HIGH: "+str.tostring(h), style=label.style_none, textcolor=high_col, size=labelSize)
+        labell := label.new(bar_index[offset], l, text="PAMBAN ZONE LOW: "+str.tostring(l), style=label.style_none, textcolor=low_col, size=labelSize)
+        //if show_intermediate_levels
+        //    labelm := label.new(bar_index[offset], m, text="IBM 50%: "+str.tostring(m)+"\nIB?: "+str.tostring(h - l), style=label.style_none, textcolor=middle_col, size=labelSize)
+        if show_extra_levels
+            label_plus := label.new(bar_index[offset], h + ib_delta, text="IBH x2 - "+str.tostring(h + ib_delta), style=label.style_none, textcolor=high_col, size=labelSize)
+            label_minus := label.new(bar_index[offset], l - ib_delta, text="IBL x2: "+str.tostring(l - ib_delta), style=label.style_none, textcolor=low_col, size=labelSize)
+            label_plus2 := label.new(bar_index[offset], h + (ib_delta*2), text="IBH x3 - "+str.tostring(h + (ib_delta*2)), style=label.style_none, textcolor=high_col, size=labelSize)
+            label_minus2 := label.new(bar_index[offset], l - (ib_delta*2), text="IBL x3: "+str.tostring(l - (ib_delta*2)), style=label.style_none, textcolor=low_col, size=labelSize)
+    if fill_ib_areas
+        if only_current_zone
+            box.delete(ib_area)
+        ib_area := box.new(bar_index[offset], h, bar_index, l, bgcolor=fill_ib_color, border_color=#00000000)//, extend=ext)
+    if only_current_levels
+        line.delete(ibh)
+        line.delete(ibl)
+        line.delete(ibm)
+        line.delete(ib_plus)
+        line.delete(ib_minus)
+        line.delete(ib_plus2)
+        line.delete(ib_minus2)
+        line.delete(ibm_plus)
+        line.delete(ibm_minus)
+     
+    ibh := line.new(bar_index[offset], h, bar_index, h, color=high_col, extend=ext, width=lvl_width, style=get_line_style(main_levels_style))
+    ibl := line.new(bar_index[offset], l, bar_index, l, color=low_col, extend=ext, width=lvl_width, style=get_line_style(main_levels_style))
+    if show_intermediate_levels
+        ibm := line.new(bar_index[offset], m, bar_index, m, color=middle_col, style=get_line_style(int_levels_style), extend=ext, width=lvl_width)
+    if show_extra_levels
+        ib_plus := line.new(bar_index[offset], h + ib_delta, bar_index, h + ib_delta, color=high_col, style=get_line_style(ext_levels_style), extend=ext, width=lvl_width)
+        ib_minus := line.new(bar_index[offset], l - ib_delta, bar_index, l - ib_delta, color=low_col, style=get_line_style(ext_levels_style), extend=ext, width=lvl_width)
+        ib_plus2 := line.new(bar_index[offset], h + (ib_delta*2), bar_index, h + (ib_delta *2), color=high_col, style=get_line_style(ext_levels_style), extend=ext, width=lvl_width)
+        ib_minus2 := line.new(bar_index[offset], l - (ib_delta*2), bar_index, l - (ib_delta*2), color=low_col, style=get_line_style(ext_levels_style), extend=ext, width=lvl_width)        
+        if show_intermediate_levels
+            ibm_plus := line.new(bar_index[offset], h + (ib_delta/2), bar_index, h + (ib_delta/2), color=middle_col, style=get_line_style(int_levels_style), extend=ext, width=lvl_width)
+            ibm_minus := line.new(bar_index[offset], l - (ib_delta/2), bar_index, l - (ib_delta/2), color=middle_col, style=get_line_style(int_levels_style), extend=ext, width=lvl_width)
+    offset := 0
+
+if (not ins) and (not ins[1])
+    line.set_x2(ibh, bar_index)
+    line.set_x2(ibl, bar_index)
+    if show_intermediate_levels
+        line.set_x2(ibm, bar_index)
+    if show_extra_levels    
+        line.set_x2(ib_plus, bar_index)
+        line.set_x2(ib_minus, bar_index)
+        line.set_x2(ib_plus2, bar_index)
+        line.set_x2(ib_minus2, bar_index)        
+        if show_intermediate_levels
+            line.set_x2(ibm_plus, bar_index)
+            line.set_x2(ibm_minus, bar_index)
+
+var table ib_analytics = table.new(position.bottom_left, 2, 6)
+
+ib_sentiment() =>
+    h = array.max(delta_history)
+    l = array.min(delta_history)
+    a = array.avg(delta_history)
+    
+    h_comp = ib_delta > h ? ib_delta - h : (ib_delta - h) * -1
+    l_comp = ib_delta > l ? ib_delta - l : (ib_delta - l) * -1
+    a_comp = ib_delta > a ? ib_delta - a : (ib_delta - a) * -1
+    (h_comp < l_comp and h_comp < a_comp) ? "Huge" : (l_comp < h_comp and l_comp < a_comp) ? "Small" : "Medium"
+
+show_delta_analytics = input.bool(true, "Display IB delta analytics", group="Information")
+    
+if show_delta_analytics
+    table.cell(ib_analytics, 0, 0, "Trading Learner ", bgcolor=color.black, text_color=color.white)
+    table.cell(ib_analytics, 0, 1, "http://tradinglearner.co.in/", bgcolor=color.black, text_color=color.white)
+    //table.cell(ib_analytics, 1, 1, str.tostring(array.max(delta_history), "#.####"), bgcolor=color.black, text_color=high_col)
+    table.cell(ib_analytics, 0, 2, "Brahmastra V3.2", bgcolor=color.black, text_color=color.white)
+    //table.cell(ib_analytics, 1, 2, str.tostring(array.avg(delta_history), "#.####"), bgcolor=color.black, text_color=middle_col)
+    table.cell(ib_analytics, 0, 3, "Created by... Ved Prakash", bgcolor=color.black, text_color=color.white)
+    //table.cell(ib_analytics, 1, 3, str.tostring(array.min(delta_history), "#.####"), bgcolor=color.black, text_color=low_col)
+
+
+
+//
+
+OPEN=request.security(syminfo.tickerid,'D',open,barmerge.gaps_off,barmerge.lookahead_on)
+
+//ADR L
+dcol = color.red
+dayrange=(high - low)
+
+r1 = request.security(syminfo.tickerid, 'D', dayrange) 
+r2 = request.security(syminfo.tickerid, 'D', dayrange[1]) 
+r3 = request.security(syminfo.tickerid, 'D', dayrange[2]) 
+r4= request.security(syminfo.tickerid, 'D', dayrange[3])
+r5= request.security(syminfo.tickerid, 'D', dayrange[4])
+r6 = request.security(syminfo.tickerid, 'D', dayrange[5]) 
+r7 = request.security(syminfo.tickerid, 'D', dayrange[6]) 
+r8 = request.security(syminfo.tickerid, 'D', dayrange[7]) 
+r9= request.security(syminfo.tickerid, 'D', dayrange[8])
+r10= request.security(syminfo.tickerid, 'D', dayrange[9])
+
+
+
+
+
+adr_10 = (r1+r2+r3+r4+r5+r6+r7+r8+r9+r10) /10
+adr_9 = (r1+r2+r3+r4+r5+r6+r7+r8+r9) /9
+adr_8 = (r1+r2+r3+r4+r5+r6+r7+r8) /8
+adr_7 = (r1+r2+r3+r4+r5+r6+r7) /7
+adr_6 = (r1+r2+r3+r4+r5+r6) /6
+adr_5 = (r1+r2+r3+r4+r5) /5
+adr_4 = (r1+r2+r3+r4) /4
+adr_3 = (r1+r2+r3) /3
+adr_2= (r1+r2)/2
+adr_1 = r1
+
+
+//plot 
+adrhigh10=plot((OPEN+(adr_10/2)) , title="ADR High10",style=plot.style_circles,color=color.red,linewidth=2) 
+adrlow10=plot((OPEN-(adr_10/2)), title="ADR LOW10",style=plot.style_circles, color=color.green,linewidth=2)
+adrhigh5=plot((OPEN+(adr_5/2)) , title="ADR High5",style=plot.style_circles,color=color.red,linewidth=2)
+adrlow5=plot((OPEN-(adr_5/2)), title="ADR LOW5",style=plot.style_circles, color=color.green,linewidth=2)
+
+
+
+
+//fill(adrlow10,adrlow5,color=color.lime)
+//fill(adrhigh10,adrhigh5,color=color.maroon)
