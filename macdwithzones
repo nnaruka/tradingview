@@ -1,0 +1,64 @@
+//@version=5
+indicator(title="Moving Average Convergence Divergence", shorttitle="MACD",timeframe = "")
+// Getting inputs
+fast_length = input(title="Fast Length", defval=12)
+slow_length = input(title="Slow Length", defval=26)
+
+smothing_period_nz = input(title="Smothing Period for NZ", defval=2)
+src = close //math.sum(volume*close,fast_length)/math.sum(volume,fast_length)
+signal_length = input.int(title="Signal Smoothing",  minval = 1, maxval = 50, defval = 9)
+sma_source = input.string(title="Oscillator MA Type",  defval="EMA", options=["SMA", "EMA"])
+sma_signal = input.string(title="Signal Line MA Type", defval="EMA", options=["SMA", "EMA"])
+// Plot colors
+// col_macd = input(#8700fd, "MACD Line  ", group="Color Settings", inline="MACD")
+col_signal = input(color.rgb(240, 159, 84), "Signal Line  ", group="Color Settings", inline="Signal")
+col_grow_above = input(color.rgb(27, 133, 27), "Above   Grow", group="Histogram", inline="Above")
+col_fall_above = input(color.rgb(104, 233, 153), "Fall", group="Histogram", inline="Above")
+col_grow_below = input(color.rgb(247, 156, 128), "Below Grow", group="Histogram", inline="Below")
+col_fall_below = input(color.rgb(201, 78, 6), "Fall", group="Histogram", inline="Below")
+
+// Calculating
+fast_ma = sma_source == "SMA" ? ta.sma(src, fast_length) : ta.ema(src, fast_length)
+slow_ma = sma_source == "SMA" ? ta.sma(src, slow_length) : ta.ema(src, slow_length)
+macd = fast_ma -slow_ma
+signal = sma_signal == "SMA" ? ta.sma(macd, signal_length) : ta.ema(macd, signal_length)
+hist =1*(macd - signal)
+
+mc = macd > macd[1]  ? color.blue:color.blue //rgb(241, 140, 73)
+PDC = request.security(syminfo.tickerid, "1D", close[1],barmerge.gaps_off, barmerge.lookahead_on)
+NZ_plus = ta.sma(PDC/500,smothing_period_nz)
+NZ_minus = (-1)*NZ_plus
+
+BZ_plus = NZ_plus*4
+BZ_minus = NZ_minus*4
+
+
+f1 = plot(NZ_plus,title ='NZ UPPER LEVEL',color = color.rgb(72, 74, 72),linewidth =2,style=plot.style_line)
+f2 = plot(NZ_minus,title ='NZ LOWER LEVEL',color = color.rgb(58, 58, 58),linewidth =2,style=plot.style_line)
+
+f3 = plot(BZ_plus,title ='NZ UPPER LEVEL',color =  color.rgb(145, 252, 145),linewidth =2,style=plot.style_line)
+f4 = plot(BZ_minus,title ='NZ LOWER LEVEL',color =  color.rgb(236, 135, 135),linewidth =2,style=plot.style_line)
+f5 = plot(2*BZ_plus,title ='NZ UPPER LEVEL',color =  color.rgb(134, 252, 195),linewidth =2,style=plot.style_line)
+f6 = plot(2*BZ_minus,title ='NZ LOWER LEVEL',color =  color.rgb(228, 145, 145),linewidth =2,style=plot.style_line)
+fill(f1,f2,color= color.rgb(246, 247, 248, 80))
+fill(f1,f3,color= color.rgb(216, 255, 218, 60))
+fill(f2,f4,color= color.rgb(252, 212, 212, 60))
+fill(f3,f5,color= color.rgb(198, 248, 224))
+fill(f4,f6,color= color.rgb(250, 194, 194))
+
+var cross_macd = color.gray
+if ta.crossover(macd,signal)
+    cross_macd := color.rgb(57, 129, 58)
+if ta.crossunder(macd,signal)
+    cross_macd := color.rgb(146, 57, 57)
+hline(0, "Zero Line", color=color.new(#787B86, 50))
+plot(hist, title="Histogram", style=plot.style_histogram, color=(hist>=0 ? (hist[1] < hist ? col_grow_above : col_fall_above) : (hist[1] < hist ? col_grow_below : col_fall_below)),linewidth=6)
+plot(macd, title="MACD", color= mc,linewidth = 2)
+plot(signal, title="Signal", color=col_signal,linewidth = 2)
+
+//plot(ta.cross(macd,signal) ? signal : na, color= cross_macd, style=plot.style_cross, linewidth=5)
+macd_crossing_nz_upside = ta.crossover(macd,NZ_plus)
+macd_crossing_nz_downside = ta.crossunder(macd,NZ_minus)
+
+alertcondition(macd_crossing_nz_upside,"MACD CROSSING NZ UPSIDE","MACD CROSSING NZ UPSIDE")
+alertcondition(macd_crossing_nz_downside,"MACD CROSSING NZ DOWNSIDE","MACD CROSSING NZ DOWNSIDE")
