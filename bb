@@ -54,6 +54,10 @@ ncoState15 = line15 < signal15
 tf1Cond     = pcoState15 and (line15 >= 0 or line15 >= histLowest15)
 tf1CondBear = ncoState15 and (line15 <= 0 or line15 <= histHighest15)
 
+// 2nd alternative 15m path — a shallow pullback that hasn't crossed zero yet
+newBull15Cond = line15 <= signal15 and line15 > 0
+newBear15Cond = line15 >= signal15 and line15 < 0
+
 // ════════════════════════════════════════════════════════════════════════════════
 // TF+2 (1H) MACD — PCO state or a PCO event now
 // ════════════════════════════════════════════════════════════════════════════════
@@ -69,8 +73,8 @@ tf2CondBear = ncoState1h or nco1h
 // ════════════════════════════════════════════════════════════════════════════════
 // FINAL SIGNAL
 // ════════════════════════════════════════════════════════════════════════════════
-finalSignal     = supported and baseCond and tf1Cond and tf2Cond
-finalSignalBear = supported and baseCondBear and tf1CondBear and tf2CondBear
+finalSignal     = supported and baseCond     and tf2Cond     and (tf1Cond or newBull15Cond)
+finalSignalBear = supported and baseCondBear and tf2CondBear and (tf1CondBear or newBear15Cond)
 
 // ════════════════════════════════════════════════════════════════════════════════
 // VISUAL
@@ -153,6 +157,14 @@ if showDiag and barstate.islast
     table.cell(diagTable, 0, 11, "tf1CondBear (15m FINAL)", text_color=color.black, text_size=size.small)
     table.cell(diagTable, 1, 11, b(tf1CondBear), bgcolor=bc(tf1CondBear), text_color=color.black, text_size=size.small)
     table.cell(diagTable, 2, 11, "", text_color=color.black, text_size=size.small)
+
+    table.cell(diagTable, 0, 14, "newBull15Cond (2nd 15m path)", text_color=color.black, text_size=size.small)
+    table.cell(diagTable, 1, 14, b(newBull15Cond), bgcolor=bc(newBull15Cond), text_color=color.black, text_size=size.small)
+    table.cell(diagTable, 2, 14, "line<=sig & line>0", text_color=color.black, text_size=size.small)
+
+    table.cell(diagTable, 0, 15, "newBear15Cond (2nd 15m path)", text_color=color.black, text_size=size.small)
+    table.cell(diagTable, 1, 15, b(newBear15Cond), bgcolor=bc(newBear15Cond), text_color=color.black, text_size=size.small)
+    table.cell(diagTable, 2, 15, "line>=sig & line<0", text_color=color.black, text_size=size.small)
 
     table.cell(diagTable, 0, 12, "ncoState1h / nco1h", text_color=color.black, text_size=size.small)
     table.cell(diagTable, 1, 12, b(ncoState1h) + " / " + b(nco1h), bgcolor=bc(tf2CondBear), text_color=color.black, text_size=size.small)
